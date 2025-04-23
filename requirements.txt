@@ -1,4 +1,1 @@
-Flask
-numpy
-tensorflow
-Werkzeug
+Flask==3.0.0
