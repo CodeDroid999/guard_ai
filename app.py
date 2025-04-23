@@ -1,60 +1,42 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory
+# app.py
 import cv2
+from flask import Flask, render_template, Response
+from ultralytics import YOLO
 import os
-import uuid
-from ultralytics import solutions
 
 app = Flask(__name__)
-UPLOAD_FOLDER = 'static/uploads'
-PROCESSED_FOLDER = 'static/processed'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
-# Email config
-from_email = "abc@gmail.com"
-password = "your_16_digit_app_password"
-to_email = "xyz@gmail.com"
+# Load model from model directory
+model_path = os.path.join('model', 'yolo11n.pt')
+model = YOLO(model_path)
+
+# Capture from webcam
+cap = cv2.VideoCapture(0)
+
+def generate_frames():
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
+
+        results = model.predict(source=frame, show=False)
+
+        # Plot detection results on frame
+        for r in results:
+            annotated_frame = r.plot()
+
+        # Encode the frame for MJPEG
+        ret, buffer = cv2.imencode('.jpg', annotated_frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html')  # HTML to show video stream
 
-@app.route('/process', methods=['POST'])
-def process():
-    video = request.files['video']
-    if not video:
-        return redirect(url_for('index'))
+@app.route('/video')
+def video():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-    # Save the uploaded video
-    filename = f"{uuid.uuid4().hex}.mp4"
-    video_path = os.path.join(UPLOAD_FOLDER, filename)
-    video.save(video_path)
-
-    # Initialize capture and security alarm
-    cap = cv2.VideoCapture(video_path)
-    w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
-    output_filename = f"processed_{filename}"
-    output_path = os.path.join(PROCESSED_FOLDER, output_filename)
-    writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
-
-    securityalarm = solutions.SecurityAlarm(
-        show=False,
-        model="model/yolo11n.pt",
-        records=1,
-    )
-    securityalarm.authenticate(from_email, password, to_email)
-
-    while cap.isOpened():
-        success, im0 = cap.read()
-        if not success:
-            break
-        results = securityalarm(im0)
-        writer.write(results.plot_im)
-
-    cap.release()
-    writer.release()
-    return render_template('index.html', video_path=output_path)
-
-@app.route('/video/<filename>')
-def serve_video(filename):
-    return send_from_directory(PROCESSED_FOLDER, filename)
