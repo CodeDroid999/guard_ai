@@ -4,12 +4,7 @@ import torch
 from ultralytics import YOLO
 import os
 
-app = Flask(
-    __name__,
-    static_url_path='../static',      # Allow /static access
-    static_folder='/static',   # Where your CSS/JS/Images live
-    template_folder='/api/templates'      # Where your HTML files live
-)
+app = Flask(__name__)
 
 # Load YOLO model
 model_path = "../yolo11n.pt"  # <-- your model path
@@ -89,28 +84,22 @@ def uploaded_file(filename):
 
 def generate_frames():
     global video_capture
-    try:
-        while True:
-            if video_capture is None:
-                break
-            success, frame = video_capture.read()
-            if not success:
-                break
+    while True:
+        if video_capture is None:
+            break
+        success, frame = video_capture.read()
+        if not success:
+            break
 
-            results = model.predict(frame, imgsz=640, conf=0.5)
-            frame = results[0].plot()
+        # Run YOLO prediction on frame
+        results = model.predict(frame, imgsz=640, conf=0.5)
+        frame = results[0].plot()
 
-            _, buffer = cv2.imencode('.jpg', frame)
-            frame_bytes = buffer.tobytes()
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
 
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-    except GeneratorExit:
-        pass  # Generator was closed, ignore
-    finally:
-        if video_capture is not None:
-            video_capture.release()
-            video_capture = None
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 # ================== MAIN ====================
 
