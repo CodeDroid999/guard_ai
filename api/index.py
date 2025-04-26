@@ -1,150 +1,91 @@
-from flask import Flask, request, jsonify, Response
-from flask_cors import CORS
-from ultralytics import YOLO
-import torch
+from flask import Flask, render_template, request, redirect, url_for, Response
 import cv2
-import numpy as np
-import io
-from PIL import Image
+import torch
+from ultralytics import YOLO
+import os
 
 app = Flask(__name__)
-CORS(app)
 
-# ------------------ MODEL LOADING ------------------
+# Load your custom YOLO model here
+model_path = "../yolo11n.pt"  # <--- leave this for your own model
+model = YOLO(model_path)
 
-# Load your custom YOLO model
-# ⚡ Replace 'yolo11n.pt' with your actual model path
-model = YOLO('../yolo11n.pt')
-
-# ----------------------------------------------------
-
-# Utility to read image from bytes
+# Global variables for stream sources
+video_capture = None
+stream_url = None
 
 
-def read_imagefile(file) -> np.ndarray:
-    image = np.array(Image.open(io.BytesIO(file)))
-    return image
-
-# Utility to convert OpenCV image to bytes
+@app.route("/")
+def home():
+    return render_template("template/home.html")
 
 
-def encode_image_to_bytes(img):
-    _, buffer = cv2.imencode('.jpg', img)
-    return buffer.tobytes()
+@app.route("/upload", methods=["POST"])
+def upload():
+    if "file" not in request.files:
+        return "No file part", 400
+    files = request.files.getlist("file")
+    os.makedirs("uploads", exist_ok=True)
 
-# ------------------ API ROUTES ------------------
-
-
-@app.route('/predict/single', methods=['POST'])
-def predict_single_image():
-    file = request.files['file']
-    img = read_imagefile(file.read())
-
-    results = model.predict(source=img, imgsz=640, conf=0.25)
-    boxes = results[0].boxes.xyxy.cpu().numpy().tolist()
-    labels = results[0].boxes.cls.cpu().numpy().tolist()
-
-    return jsonify({
-        "boxes": boxes,
-        "labels": labels,
-    })
-
-
-@app.route('/predict/batch', methods=['POST'])
-def predict_batch_images():
-    files = request.files.getlist('files')
-    predictions = []
+    results = []
 
     for file in files:
-        img = read_imagefile(file.read())
-        results = model.predict(source=img, imgsz=640, conf=0.25)
-        boxes = results[0].boxes.xyxy.cpu().numpy().tolist()
-        labels = results[0].boxes.cls.cpu().numpy().tolist()
+        filepath = os.path.join("uploads", file.filename)
+        file.save(filepath)
 
-        predictions.append({
-            "filename": file.filename,
-            "boxes": boxes,
-            "labels": labels,
-        })
+        if file.filename.lower().endswith((".mp4", ".avi", ".mov")):
+            # Handle video file
+            results.append(f"Video uploaded: {file.filename}")
+        else:
+            # Handle image prediction
+            pred = model.predict(source=filepath, save=True,
+                                 project="runs", name="predictions", exist_ok=True)
+            results.append(f"Image predicted: {file.filename}")
 
-    return jsonify(predictions)
-
-
-@app.route('/predict/video', methods=['POST'])
-def predict_video():
-    file = request.files['file']
-    in_memory_file = io.BytesIO()
-    file.save(in_memory_file)
-    in_memory_file.seek(0)
-
-    # Convert file into OpenCV VideoCapture
-    video_bytes = np.frombuffer(in_memory_file.read(), np.uint8)
-    video = cv2.imdecode(video_bytes, cv2.IMREAD_COLOR)
-
-    # Process frame-by-frame
-    results = model.predict(source=video, imgsz=640, conf=0.25)
-
-    frames = []
-    for result in results:
-        img = result.plot()  # Plot boxes
-        img_bytes = encode_image_to_bytes(img)
-        frames.append(img_bytes)
-
-    return jsonify({"message": f"Processed {len(frames)} frames"})
+    return redirect(url_for('home'))
 
 
-@app.route('/predict/livestream', methods=['POST'])
-def predict_live_stream():
-    file = request.files['file']
-    img = read_imagefile(file.read())
-
-    results = model.predict(source=img, imgsz=640, conf=0.25)
-    boxes = results[0].boxes.xyxy.cpu().numpy().tolist()
-    labels = results[0].boxes.cls.cpu().numpy().tolist()
-
-    return jsonify({
-        "boxes": boxes,
-        "labels": labels,
-    })
+@app.route("/stream/webcam")
+def stream_webcam():
+    global video_capture
+    video_capture = cv2.VideoCapture(0)
+    return Response(generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@app.route('/predict/webcam', methods=['GET'])
-def predict_webcam():
-    cap = cv2.VideoCapture(0)  # 0 = default webcam
+@app.route("/stream/cctv")
+def stream_cctv():
+    global video_capture, stream_url
+    stream_url = request.args.get("url")
+    if not stream_url:
+        return "No CCTV URL provided", 400
+    video_capture = cv2.VideoCapture(stream_url)
+    return Response(generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
-    if not cap.isOpened():
-        return jsonify({"error": "Cannot access webcam"})
 
+def generate_frames():
+    global video_capture
     while True:
-        ret, frame = cap.read()
-        if not ret:
+        if video_capture is None:
+            break
+        success, frame = video_capture.read()
+        if not success:
             break
 
-        results = model.predict(source=frame, imgsz=640, conf=0.25)
-        annotated_frame = results[0].plot()
+        # Inference on each frame
+        results = model.predict(frame, imgsz=640, conf=0.5)
+        frame = results[0].plot()  # Draw predictions
 
-        # Encode the frame
-        ret, buffer = cv2.imencode('.jpg', annotated_frame)
-        frame = buffer.tobytes()
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
 
-        # Serve frame via streaming
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-    cap.release()
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 
-@app.route('/video_feed')
-def video_feed():
-    return Response(predict_webcam(), mimetype='multipart/x-mixed-replace; boundary=frame')
+@app.route("/video")
+def video():
+    return Response(generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@app.route('/')
-def root():
-    return "YOLOv8 FastAPI Server Running 🚀"
-
-# ------------------ MAIN ------------------
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
