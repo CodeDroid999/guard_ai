@@ -1,65 +1,89 @@
 {% extends "base.html" %} {% block content %}
 
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>YOLOv11 Security AI</title>
-  </head>
-  <body>
-    <h1>Upload Images or Videos</h1>
-    <form method="POST" action="/upload" enctype="multipart/form-data">
-      <input type="file" name="file" multiple required />
-      <button type="submit">Upload</button>
-    </form>
+<div class="container my-5">
+  <!-- Title -->
+  <h1 class="text-center mb-5">Smart Eye AI</h1>
 
-    <h2>Live Stream</h2>
-    <p><a href="/stream/webcam" target="_blank">Webcam Stream</a></p>
-    <form action="/stream/cctv" method="get">
-      <input type="text" name="url" placeholder="Enter CCTV URL" />
-      <button type="submit">Stream</button>
-    </form>
-  </body>
-</html>
+  <!-- Webcam Stream Form -->
+  <div class="card mb-4">
+    <div class="card-header">Webcam Stream</div>
+    <div class="card-body text-center">
+      <a
+        href="{{ url_for('stream_webcam') }}"
+        target="_blank"
+        class="btn btn-primary"
+      >
+        Start Webcam Stream
+      </a>
+    </div>
+  </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-  $(document).ready(function () {
-    $("#imageUpload").change(function () {
-      var input = this;
-      if (input.files && input.files[0]) {
-        var reader = new FileReader();
-        reader.onload = function (e) {
-          $("#imagePreview").css(
-            "background-image",
-            "url(" + e.target.result + ")"
-          );
-        };
-        reader.readAsDataURL(input.files[0]);
-        $(".image-section").show();
-      }
-    });
+  <!-- CCTV Stream Form -->
+  <div class="card mb-4">
+    <div class="card-header">CCTV Stream</div>
+    <div class="card-body">
+      <form method="GET" action="{{ url_for('stream_cctv') }}">
+        <div class="input-group">
+          <input
+            type="text"
+            class="form-control"
+            name="url"
+            placeholder="Enter CCTV Stream URL"
+            required
+          />
+          <button type="submit" class="btn btn-success">
+            Start CCTV Stream
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-    $("#btn-predict").click(function () {
-      var form_data = new FormData($("#upload-file")[0]);
-      $(".loader").show();
-      $.ajax({
-        type: "POST",
-        url: "/predict",
-        data: form_data,
-        contentType: false,
-        cache: false,
-        processData: false,
-        success: function (result) {
-          $(".loader").hide();
-          $("#result span").text("Result: " + result);
-        },
-        error: function () {
-          $(".loader").hide();
-          alert("Error occurred during prediction.");
-        },
-      });
-    });
-  });
-</script>
+  <!-- Upload Media Form -->
+  <div class="card mb-4">
+    <div class="card-header">Upload Images or Videos</div>
+    <div class="card-body">
+      <form
+        method="POST"
+        action="{{ url_for('upload') }}"
+        enctype="multipart/form-data"
+      >
+        <div class="mb-3">
+          <input
+            type="file"
+            class="form-control"
+            name="file"
+            multiple
+            required
+          />
+        </div>
+        <button type="submit" class="btn btn-warning">Upload & Process</button>
+      </form>
+    </div>
+  </div>
 
-{% endblock %} v
+  <!-- Processed Results Section -->
+  <div class="card mb-4">
+    <div class="card-header">Processed Results</div>
+    <div class="card-body text-center">
+      {% if videos %} {% for vid in videos %} {% if vid.endswith('.mp4') %}
+      <video width="480" controls class="mb-3">
+        <source
+          src="{{ url_for('processed_file', filename=vid) }}"
+          type="video/mp4"
+        /></video
+      ><br />
+      {% else %}
+      <img
+        src="{{ url_for('processed_file', filename=vid) }}"
+        width="480"
+        class="img-fluid mb-3"
+      /><br />
+      {% endif %} {% endfor %} {% else %}
+      <p class="text-muted">No results to display yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
