@@ -17,7 +17,7 @@ stream_url = None
 
 @app.route("/")
 def home():
-    return render_template("template/home.html")
+    return render_template("home.html")
 
 
 @app.route("/upload", methods=["POST"])
