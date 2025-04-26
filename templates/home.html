@@ -24,7 +24,6 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
   $(document).ready(function () {
-    // Display selected image preview
     $("#imageUpload").change(function () {
       var input = this;
       if (input.files && input.files[0]) {
@@ -40,7 +39,6 @@
       }
     });
 
-    // Perform prediction on button click
     $("#btn-predict").click(function () {
       var form_data = new FormData($("#upload-file")[0]);
       $(".loader").show();
@@ -64,14 +62,4 @@
   });
 </script>
 
-{% endblock %} =======
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Smarteye AI Stream</title>
-  </head>
-  <body>
-    <h1>Live Security Feed</h1>
-    <img src="{{ url_for('video') }}" width="720" />
-  </body>
-</html>
+{% endblock %}
