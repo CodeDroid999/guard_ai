@@ -1,0 +1,5 @@
+name: guard-ai
+description: A Flask API to run finetuned YOLO object  detection
+runtime: docker
+file: Dockerfile
+port: 5000
