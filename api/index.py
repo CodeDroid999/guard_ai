@@ -10,7 +10,7 @@ import numpy as np
 app = Flask(__name__)
 
 # Load your model (replace with the actual path to your model)
-model = torch.load('yolo11n.pt')
+model = torch.load('../yolo11n.pt')
 model.eval()
 
 # Image transformation (adjust based on model requirements)
