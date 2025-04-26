@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 
 # Load YOLO model
-model_path = "../yolo11n.pt"  # <-- your model path
+model_path = "../yolo11n.pt"  # <-- model path
 model = YOLO(model_path)
 
 # Global variables for video streaming
