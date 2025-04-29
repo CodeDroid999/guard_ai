@@ -1,1 +1,5 @@
-Flask==3.0.0
+Flask==2.1.1
+torch==1.11.0
+ultralytics==8.0.49
+opencv-python-headless==4.5.5.64  # headless version to avoid unnecessary GUI dependencies
+gunicorn==20.1.0  # production WSGI server

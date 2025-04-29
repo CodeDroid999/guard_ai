@@ -1,0 +1,15 @@
+# render.yaml
+
+services:
+  - type: web
+    name: guard.io
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python index.py" # or "flask run" if your main file is app.py
+    plan: free
+    envVars:
+      - key: FLASK_ENV
+        value: production
+    healthCheckPath: "/"
+    deploy:
+      branch: crops # Make sure to deploy from the main branch (or any other branch if needed)
