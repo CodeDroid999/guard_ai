@@ -2,7 +2,7 @@
 
 services:
   - type: web
-    name: guard.io
+    name: guard-io
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python api/index.py" # Pointing to the main entry script
@@ -12,5 +12,7 @@ services:
         value: production
     healthCheckPath: "/"
     deploy:
-      branch: main # Deploy from the main branch or change it to another branch
+      branch: main # Deploy from the main branch, or change it to another branch
     staticPublishPath: api/uploads # Make sure static files like uploads are accessible
+    # Optionally specify a port
+    port: 5000
