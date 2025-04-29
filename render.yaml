@@ -2,7 +2,7 @@
 
 services:
   - type: web
-    name: flask-yolo-app
+    name: guard.io
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python api/index.py" # Pointing to the main entry script
