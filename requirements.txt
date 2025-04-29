@@ -1,5 +1,5 @@
 Flask==2.1.1
-torch==1.11.0
+torch==2.2.2
 ultralytics==8.0.49
-opencv-python-headless==4.5.5.64  # headless version to avoid unnecessary GUI dependencies
-gunicorn==20.1.0  # production WSGI server
+opencv-python-headless==4.8.1.78
+gunicorn==20.1.0
