@@ -1,8 +1,57 @@
 {% extends "base.html" %} {% block content %}
-<div class="container my-5">
-  <h2 class="text-center">Live Stream with Detection</h2>
-  <div class="text-center">
-    <img src="{{ url_for('video_feed') }}" class="img-fluid" width="800" />
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">Live Stream & Analysis</h2>
+
+  <div class="row">
+    <div class="col-md-6">
+      <img src="{{ url_for('video_feed') }}" class="img-fluid" />
+    </div>
+
+    <div class="col-md-6">
+      <h5>Detected Objects:</h5>
+      <ul id="detected-objects" class="mb-3"></ul>
+
+      <h5>Action Analysis:</h5>
+      <p>
+        <strong>Predicted Action:</strong> <span id="predicted-action"></span>
+      </p>
+
+      <h5>All Action Scores:</h5>
+      <ul id="all-scores"></ul>
+    </div>
   </div>
 </div>
+
+<script>
+  async function fetchPredictions() {
+    try {
+      const response = await fetch("/predictions");
+      const data = await response.json();
+
+      const objList = document.getElementById("detected-objects");
+      objList.innerHTML = "";
+      data.detected_objects?.forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = `- ${item}`;
+        objList.appendChild(li);
+      });
+
+      document.getElementById(
+        "predicted-action"
+      ).textContent = `${data.predicted_action} (${data.predicted_conf}% confidence)`;
+
+      const scoreList = document.getElementById("all-scores");
+      scoreList.innerHTML = "";
+      for (const [action, score] of Object.entries(data.all_scores || {})) {
+        const li = document.createElement("li");
+        li.textContent = `- ${action}: ${score.toFixed(2)}%`;
+        scoreList.appendChild(li);
+      }
+    } catch (error) {
+      console.error("Failed to fetch predictions:", error);
+    }
+  }
+
+  setInterval(fetchPredictions, 2000); // update every 2s
+</script>
 {% endblock %}
