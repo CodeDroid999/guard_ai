@@ -1,0 +1,8 @@
+{% extends "base.html" %} {% block content %}
+<div class="container my-5">
+  <h2 class="text-center">Live Stream with Detection</h2>
+  <div class="text-center">
+    <img src="{{ url_for('video_feed') }}" class="img-fluid" width="800" />
+  </div>
+</div>
+{% endblock %}

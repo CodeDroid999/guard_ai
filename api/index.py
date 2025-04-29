@@ -54,10 +54,9 @@ def upload():
 
 @app.route("/stream/webcam")
 def stream_webcam():
-    """Stream video from the webcam."""
     global video_capture
     video_capture = cv2.VideoCapture(0)
-    return Response(generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
+    return render_template("stream.html")
 
 
 @app.route("/stream/cctv")
@@ -78,6 +77,11 @@ def video():
     return Response(generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     """Serve uploaded files."""
@@ -85,9 +89,7 @@ def uploaded_file(filename):
 
 
 # ================== STREAM FUNCTION ====================
-
 def generate_frames():
-    """Generate video frames for streaming with YOLO predictions."""
     global video_capture
     while True:
         if video_capture is None:
@@ -96,15 +98,45 @@ def generate_frames():
         if not success:
             break
 
-        # Run YOLO prediction on the frame
+        # YOLO Prediction
         results = model.predict(frame, imgsz=640, conf=0.5)
-        frame = results[0].plot()
+        annotated_frame = results[0].plot()
 
-        # Encode the frame as JPEG
-        _, buffer = cv2.imencode('.jpg', frame)
+        # Extract object labels and confidences
+        detections = []
+        for box in results[0].boxes:
+            cls = results[0].names[int(box.cls[0])]
+            conf = float(box.conf[0]) * 100
+            detections.append(f"{cls}: {conf:.2f}% confidence")
+
+        # Simulate action inference (you can integrate your real model)
+        predicted_action = "Stealing"
+        predicted_conf = 40.0
+        all_scores = {
+            "Stealing": 40.0,
+            "Sneaking": 0.0,
+            "Peaking": 0.0,
+            "Normal": 0.0
+        }
+
+        # Format overlay text
+        info_text = "Detected Objects:\n" + \
+            "\n".join(f"- {d}" for d in detections)
+        info_text += f"\n\nAction Analysis:\nPredicted Action: {predicted_action} ({predicted_conf:.2f}% confidence)"
+        info_text += "\n\nAll Action Scores:\n" + \
+            "\n".join(f"- {k}: {v:.2f}%" for k, v in all_scores.items())
+
+        # Add overlay text to the frame
+        y0, dy = 30, 25
+        for i, line in enumerate(info_text.split("\n")):
+            y = y0 + i * dy
+            cv2.putText(annotated_frame, line, (10, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+
+        # Encode frame
+        _, buffer = cv2.imencode('.jpg', annotated_frame)
         frame_bytes = buffer.tobytes()
 
-        # Yield the frame as part of the multipart response
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
