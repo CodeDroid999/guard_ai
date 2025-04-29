@@ -2,14 +2,15 @@
 
 services:
   - type: web
-    name: guard.io
+    name: flask-yolo-app
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python index.py" # or "flask run" if your main file is app.py
+    startCommand: "python api/index.py" # Pointing to the main entry script
     plan: free
     envVars:
       - key: FLASK_ENV
         value: production
     healthCheckPath: "/"
     deploy:
-      branch: crops # Make sure to deploy from the main branch (or any other branch if needed)
+      branch: main # Deploy from the main branch or change it to another branch
+    staticPublishPath: api/uploads # Make sure static files like uploads are accessible
